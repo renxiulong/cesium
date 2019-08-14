@@ -19,5 +19,5 @@ git操作
 > git commit -m "注释内容"
 4. 关联远程仓库(第一次使用,后面的wangjiax9/practice.git是在github上建立的仓库)
 > git remote add origin git@github.com:wangjiax9/practice.git
-5. 将本地库内容推送到远程库上
+5. 将本地库内容推送到远程库上(第一次需要-u参数，以后可以不要此参数)
 > git push -u origin master
