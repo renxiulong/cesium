@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>模型加载</title>
+  <!-- 加载基础资源 -->
+  <link rel="stylesheet" href="Cesium/Plugins/assets/bucket.css">
+  <link rel="stylesheet" href="Cesium/Plugins/assets/plugins.min.css">
+  
+</head>
+<body>
+  <div id="cesiumContainer" class="fullSize"></div>
+  <div class="htmlOverlay-big-content" id="htmlOverlay" style="top:-1000px;left:-1000px;">
+    <div class="content">
+      <h4 style="user-select: none;"></h4>
+      <p style="user-select: none;"></p>
+    </div>
+    <div class="top-line"></div>
+    <div class="tilt-line"></div>
+    <i class="circle"></i>
+  </div>
+</body>
+<script src="Cesium/Cesium.js"></script>
+<script>
+	// Functions to adapt screen space error and memory use to the device
+	var isMobile = {
+		Android: function() {
+			return navigator.userAgent.match(/Android/i);
+		},
+		BlackBerry: function() {
+			return navigator.userAgent.match(/BlackBerry/i);
+		},
+		iOS: function() {
+			return navigator.userAgent.match(/iPhone|iPad|iPod/i);
+		},
+		Opera: function() {
+			return navigator.userAgent.match(/Opera Mini/i);
+		},
+		Windows: function() {
+			return navigator.userAgent.match(/IEMobile/i);
+		},
+		any: function() {
+			return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows());
+		}
+	};
+  var viewer = new Cesium.Viewer('cesiumContainer',{
+	animation : true,//是否创建动画小器件，左下角仪表  
+	baseLayerPicker : true,//是否显示图层选择器  
+    fullscreenButton : true,
+	geocoder : true,//是否显示geocoder小器件，右上角查询按钮 
+	homeButton : true,//是否显示Home按钮
+	infoBox : true,//是否显示信息框
+	sceneModePicker : true,//是否显示3D/2D选择器  
+	selectionIndicator : true,//是否显示选取指示器组件 
+	timeline : true,//是否显示时间轴
+    highlight : true,
+	/*terrainProvider : Cesium.createWorldTerrain({
+        requestWaterMask: true
+    })*/// 地形代码 水面波纹
+  });
+  var google = new Cesium.UrlTemplateImageryProvider({
+    url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
+    tilingScheme : new Cesium.WebMercatorTilingScheme(),
+    maximumLevel : 20
+  });
+  viewer.imageryLayers.addImageryProvider(google);
+  /**var tileset = new Cesium.DE3DTileset({
+      url: 'https://dataearth-preset.bd.bcebos.com/system_resource/xinghan/model.json',
+	  //url: 'http://localhost:9091/Production/MyDemo/Scene/Production_1.json',
+      shadows:Cesium.ShadowMode.ENABLED,
+      viewer:viewer
+  });**/
+  var tileset = new Cesium.Cesium3DTileset({
+		url: 'Scene/Production_1.json',
+		maximumScreenSpaceError : isMobile.any() ? 8 : 1, // Temporary workaround for low memory mobile devices - Increase maximum error to 8.
+		maximumNumberOfLoadedTiles : isMobile.any() ? 10 : 1000 // Temporary workaround for low memory mobile devices - Decrease (disable) tile cache.
+	});
+  var city = viewer.scene.primitives.add(tileset);
+  //viewer.tilesetLayers.add(tileset);
+  //viewer.flyTo(tileset);
+  
+  // 设置相机属性
+  /**viewer.camera.setView({
+		//destination: Cesium.Cartesian3.fromDegrees(111.07, 39.05, 10000),
+		destination: Cesium.Cartesian3.fromDegrees(116.812267,36.548632, 100),
+		orientation: {
+			heading : Cesium.Math.toRadians(0),
+		pitch : Cesium.Math.toRadians(-30),
+		roll : Cesium.Math.toRadians(0)                          
+		}
+	});**/
+  
+  // Adjust the tileset height so its not floating above terrain
+  // 模型没有正确放置在地面上，需要通过以下函数来调整修复
+	var heightOffset = -32;
+	city.readyPromise.then(function(tileset) {
+		// Position tileset
+		var boundingSphere = tileset.boundingSphere;
+		var cartographic = Cesium.Cartographic.fromCartesian(boundingSphere.center);
+		var surface = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 0.0);
+		var offset = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, heightOffset);
+		var translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3());
+		tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+	});
+
+	var defaultStyle = new Cesium.Cesium3DTileStyle({
+		color : "color('white', 0.4)",
+		show : true
+	});
+	//city.style = defaultStyle;
+	
+	// 文字介绍-浮动框
+	var flycomplete = function () {
+		var htmlOverlayElement = document.getElementById('htmlOverlay');
+		var htmlOverlay = new Cesium.DEHtmlOverlay(viewer.scene, htmlOverlayElement);
+		//htmlOverlay.position = new Cesium.Cartesian3(-2174158.742883911, 4411465.441557616, 4047557.989273607);
+		//htmlOverlay.position = new Cesium.Cartesian3(-2313924.4927336815744638,4578394.9125017989426851,3777423.0022942973300815,106.2717270569263803);
+		htmlOverlay.position = new Cesium.Cartesian3.fromDegrees(116.812267,36.550032, 0);
+		
+		//htmlOverlay.pixelOffset = new Cesium.Cartesian2(-108, 82);
+		htmlOverlay.pixelOffset = new Cesium.Cartesian2(-108, 82);
+		htmlOverlay.depthTest = false;
+		htmlOverlay._element.querySelector('h4').textContent = "济南国际园博园";
+		htmlOverlay._element.querySelector('p').textContent = "位于山东省济南市长清区紧邻京沪高速边上，地铁一号线旁，交通方便、四通八达。北临大学城核心区，南临济南创新谷的新航城，西临天堂河，永定河观光带就在项目的西侧，风景秀丽环境优美，俗称湿地公园。";
+		htmlOverlay.show = true;
+	  };
+	// 飞行动画
+	viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(116.812267,36.548632, 200),
+      orientation: {
+        heading: Cesium.Math.toRadians(0),
+        pitch: Cesium.Math.toRadians(-45),
+        roll: 0.0
+      },
+      complete:flycomplete
+    });
+
+
+	/** 根据经纬度调整模型位置
+	var longitude = 116.3908443995411;
+	var latitude = 39.91600579431837;
+	height = 60.38590702090875;
+	var heading = 2;
+	palaceTileset.readyPromise.then(function(argument) {
+		//经纬度、高转笛卡尔坐标
+		var position = Cesium.Cartesian3.fromDegrees(longitude, latitude, height);
+		var mat = Cesium.Transforms.eastNorthUpToFixedFrame(position);
+		var rotationX = Cesium.Matrix4.fromRotationTranslation(Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(heading)));
+		Cesium.Matrix4.multiply(mat, rotationX, mat);
+		palaceTileset._root.transform = mat;
+	})**/
+	
+	// 添加立方体例子
+	var redBox = viewer.entities.add({
+		id: 'mybox001',
+		name: 'Red box with black outline',
+		position: Cesium.Cartesian3.fromDegrees(116.812267,36.550032, 0),
+		box: {
+			dimensions: new Cesium.Cartesian3(4.0, 3.0, 10.0),
+			material: Cesium.Color.RED.withAlpha(0.5),
+			outline: true,
+			outlineColor: Cesium.Color.BLACK
+		}
+	});
+	//viewer.zoomTo(viewer.entities);
+	
+	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+	handler.setInputAction(function(movement) {
+		console.log('move');
+	}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+	handler.setInputAction(function(click){
+		console.log('左键单击事件：',click.position);     
+		var obj = pickEntity(viewer, click.position);
+		console.log(obj);
+	},Cesium.ScreenSpaceEventType.LEFT_CLICK);
+	
+	/**
+	 * Returns the top-most entity at the provided window coordinates
+	 * or undefined if no entity is at that location.
+	 *
+	 * @param {Cartesian2} windowPosition The window coordinates.
+	 * @returns {Entity} The picked entity or undefined.
+	 */
+	function pickEntity(viewer, windowPosition) {
+	  var picked = viewer.scene.pick(windowPosition);
+	  if (picked != undefined) {
+		var id = Cesium.defaultValue(picked.id, picked.primitive.id);
+		if (id instanceof Cesium.Entity) {
+		  return id;
+		}
+	  }
+	  return undefined;
+	};
+	
+	var citizensBankPark = viewer.entities.add({
+		name : 'Citizens Bank Park',
+		position : Cesium.Cartesian3.fromDegrees(116.812267,36.550532),
+		point : {
+			pixelSize : 5,
+			color : Cesium.Color.RED,
+			outlineColor : Cesium.Color.WHITE,
+			outlineWidth : 2
+		},
+		label : {
+			text : 'Citizens Bank Park',
+			font : '14pt monospace',
+			style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+			outlineWidth : 2,
+			verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+			pixelOffset : new Cesium.Cartesian2(0, -9)
+		}
+	});
+
+	viewer.zoomTo(viewer.entities);
+	
+	/**
+	 * 百度坐标系 (BD-09) 与 火星坐标系 (GCJ-02)的转换
+	 * 即 百度 转 谷歌、高德
+	 * @param bd_lon
+	 * @param bd_lat
+	 * @returns {*[]}
+	 */
+	function bd09togcj02(bd_lon, bd_lat) {
+		var x_pi = 3.14159265358979324 * 3000.0 / 180.0;
+		var x = bd_lon - 0.0065;
+		var y = bd_lat - 0.006;
+		var z = Math.sqrt(x * x + y * y) - 0.00002 * Math.sin(y * x_pi);
+		var theta = Math.atan2(y, x) - 0.000003 * Math.cos(x * x_pi);
+		var gg_lng = z * Math.cos(theta);
+		var gg_lat = z * Math.sin(theta);
+		return [gg_lng, gg_lat]
+	}
+	/**
+	 * 火星坐标系 (GCJ-02) 与百度坐标系 (BD-09) 的转换
+	 * 即谷歌、高德 转 百度
+	 * @param lng
+	 * @param lat
+	 * @returns {*[]}
+	 */
+	function gcj02tobd09(lng, lat) {
+		var z = Math.sqrt(lng * lng + lat * lat) + 0.00002 * Math.sin(lat * x_PI);
+		var theta = Math.atan2(lat, lng) + 0.000003 * Math.cos(lng * x_PI);
+		var bd_lng = z * Math.cos(theta) + 0.0065;
+		var bd_lat = z * Math.sin(theta) + 0.006;
+		return [bd_lng, bd_lat]
+	}
+</script>
+</html>

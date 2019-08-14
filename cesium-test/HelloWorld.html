@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8">
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>Hello World!</title>
+  <script src="Build/Cesium/Cesium.js"></script>
+  <style>
+      @import url(Build/Cesium/Widgets/widgets.css);
+      html, body, #cesiumContainer {
+          width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+	  .cesium-widget-credits{ display:none} /**  隐藏版权信息 **/
+	  .cesium-viewer .cesium-widget-credits{ display:none }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script>
+	// Functions to adapt screen space error and memory use to the device
+	var isMobile = {
+		Android: function() {
+			return navigator.userAgent.match(/Android/i);
+		},
+		BlackBerry: function() {
+			return navigator.userAgent.match(/BlackBerry/i);
+		},
+		iOS: function() {
+			return navigator.userAgent.match(/iPhone|iPad|iPod/i);
+		},
+		Opera: function() {
+			return navigator.userAgent.match(/Opera Mini/i);
+		},
+		Windows: function() {
+			return navigator.userAgent.match(/IEMobile/i);
+		},
+		any: function() {
+			return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows());
+		}
+	};
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+		geocoder: false,//是否显示geocoder小器件，右上角查询按钮
+		homeButton:false,//是否显示Home按钮
+		sceneModePicker:false,//是否显示3D/2D选择器
+		baseLayerPicker:false,//是否显示图层选择器
+		navigationHelpButton:false,//是否显示右上角的帮助按钮
+		animation:false,//是否创建动画小器件，左下角仪表
+		creditContainer:"cesiumContainer",// 对应上面div的ID
+		timeline:false,//是否显示时间轴
+		fullscreenButtion:false,//是否显示全屏按钮
+		vrButton:false,
+		selectionIndicator : false,//是否显示选取指示器组件
+	});
+	// 上面配置选项可以控制部分控件是否显示
+	viewer.scene.debugShowFramesPerSecond = true;// 显示帧率
+	/** 默认使用bing地图，转换为google地图开始 **/
+	var google = new Cesium.UrlTemplateImageryProvider({
+		//url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
+		url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
+		tilingScheme : new Cesium.WebMercatorTilingScheme(),
+		maximumLevel : 20
+	});
+	viewer.imageryLayers.addImageryProvider(google);
+	/** 默认使用bing地图，转换为google地图结束 **/
+	/** 开始添加立方体开始 ***
+	var redBox = viewer.entities.add({
+		name: 'my first box',
+		position: Cesium.Cartesian3.fromDegrees(-107.0, 40.0, 300000.0),
+		box: {
+			dimensions : new Cesium.Cartesian3(400000.0, 300000.0, 500000.0),
+			material: Cesium.Color.RED.withAlpha(0.5),
+			outline: true,
+			outlineColor: Cesium.Color.BLACK
+		}
+	});
+	viewer.zoomTo(viewer.entities);
+	/** 开始添加立方体结束 ***/
+	
+	/** 放置航拍模型开始 ***/
+	var tileset = new Cesium.Cesium3DTileset({
+		url: 'Scene/Production_1.json',
+		maximumScreenSpaceError : isMobile.any() ? 8 : 1, // Temporary workaround for low memory mobile devices - Increase maximum error to 8.
+		maximumNumberOfLoadedTiles : isMobile.any() ? 10 : 1000 // Temporary workaround for low memory mobile devices - Decrease (disable) tile cache.
+	});
+	var city = viewer.scene.primitives.add(tileset);
+	// 模型没有正确放置在地面上，需要通过以下函数来调整修复
+	var heightOffset = -32;
+	city.readyPromise.then(function(tileset) {
+		// Position tileset
+		var boundingSphere = tileset.boundingSphere;
+		var cartographic = Cesium.Cartographic.fromCartesian(boundingSphere.center);
+		var surface = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 0.0);
+		var offset = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, heightOffset);
+		var translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3());
+		tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+	});
+	/** 放置航拍模型结束 ***/
+	/** 放置介绍文字 贴地开始**/
+	var citizensBankPark = viewer.entities.add({
+		id: 'sensor0',
+		name : 'Citizens Bank Park',
+		position : Cesium.Cartesian3.fromDegrees(116.812267,36.550532),
+		point : {
+			pixelSize : 5,
+			color : Cesium.Color.RED,
+			outlineColor : Cesium.Color.WHITE,
+			outlineWidth : 2
+		},
+		label : {
+			text : '一号大棚\n空气温度:33.4℃\n空气湿度:87%\n光照度:394klux\n辐射度:30ppm',
+			font : '28pt 微软雅黑',//monospace',
+			style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+			outlineWidth : 20,
+			scale:0.5,
+			verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+			pixelOffset : new Cesium.Cartesian2(0, -9),
+			distanceDisplayCondition: true,
+			showBackground: true,
+			horizontalOrigin:1,// 0:居中 1:left左对齐 2:right右对齐
+			backgroundPadding:new Cesium.Cartesian2(30, 30)
+		}
+	});
+	viewer.scene.postProcessStages.fxaa.enabled = false;// 关闭快速抗锯齿 抑制文字模糊效果
+
+	viewer.zoomTo(viewer.entities);
+	/** 放置介绍文字 贴地 并且拉进距离 结束**/
+	/** 超过一定比例 隐藏文字组件 开始 **/
+	// 鼠标滚轮事件
+	var camera=viewer.camera;
+	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+	handler.setInputAction(function(wheelment) {
+		var height=camera.positionCartographic.height;
+		if(height<100){
+			console.log('height:' + height + ' show label');
+			console.log(viewer.entities.values);
+			viewer.entities.values.forEach(function(item) {
+				if(item.id == 'sensor0') {
+					item.show = true;
+				}
+			});
+		} else {
+			console.log('height:' + height + ' hide label');
+			viewer.entities.values.forEach(function(item) {
+				if(item.id == 'sensor0') {
+					item.show = false;
+				}
+			});
+		}
+	}, Cesium.ScreenSpaceEventType.WHEEL);
+	/** 超过一定比例 隐藏文字组件 结束 **/
+	
+	/** 相机视角飞行 开始 **/
+	var pointIndex = 0;
+	var degrees = [{'lng': 116.825511,'lat':36.555917},{'lng': 116.824303,'lat':36.556439},{'lng': 116.823517,'lat':36.555573},{'lng': 116.824761,'lat':36.554932},];
+	function flyView() {
+		console.log(degrees[pointIndex].lng,degrees[pointIndex].lat);
+		viewer.camera.flyTo({
+			//destination :Cesium.Cartesian3.fromDegrees(116.435314,39.960521, 15000.0), // 设置位置
+			destination :Cesium.Cartesian3.fromDegrees(degrees[pointIndex].lng,degrees[pointIndex].lat, 500.0), // 设置位置
+			/**orientation: {
+				heading : 0, //Cesium.Math.toRadians(20.0), // 方向
+				pitch : 0,//Cesium.Math.toRadians(-90.0),// 倾斜角度
+				roll :0
+			},**/
+			orientation : {
+				heading : Cesium.Math.toRadians(-0.0),
+				pitch : Cesium.Math.toRadians(-90.0),
+				roll : 0.0
+			},
+			duration:5, // 设置飞行持续时间，默认会根据距离来计算
+			complete:function () {
+				// 到达位置后执行的回调函数
+				pointIndex = ++pointIndex >=4 ? 0 : pointIndex; 
+				flyView();
+			},
+			cancle:function () {
+			// 如果取消飞行则会调用此函数
+			},
+			pitchAdjustHeight:-90, // 如果摄像机飞越高于该值，则调整俯仰俯仰的俯仰角度，并将地球保持在视口中。
+			maximumHeight:50000, // 相机最大飞行高度
+			//flyOverLongitude:100, // 如果到达目的地有2种方式，设置具体值后会强制选择方向飞过这个经度(这个，很好用)
+		});
+	}
+	//flyView();
+	/** 相机视角飞行 结束 **/
+	var position=Cesium.Cartesian3.fromDegrees(112.315216, 39.5125612, 10000);
+	//viewer.scene.camera.flyTo({
+	//	destination: Cesium.Cartesian3.fromDegrees(112.315216, 39.5125612, 10000),  //定位坐标点，建议使用谷歌地球坐标位置无偏差
+	//	duration:1   //定位的时间间隔
+	//});
+	//setTimeout(function(){
+	//	 flyExtent();
+	//},1000);
+	
+	function  flyExtent(){
+			// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-30度
+		var pitch = Cesium.Math.toRadians(-30);
+		// 给定飞行一周所需时间，比如10s, 那么每秒转动度数
+		var angle = 360 / 5;
+		// 给定相机距离点多少距离飞行，这里取值为5000m
+		var distance = 15000;
+		var startTime = Cesium.JulianDate.fromDate(new Date());
+		
+		var stopTime = Cesium.JulianDate.addSeconds(startTime, 5, new Cesium.JulianDate());
+	 
+		viewer.clock.startTime = startTime.clone();  // 开始时间
+		viewer.clock.stopTime = stopTime.clone();     // 结速时间
+		viewer.clock.currentTime = startTime.clone(); // 当前时间
+		viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 行为方式
+		viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK; // 时钟设置为当前系统时间; 忽略所有其他设置。
+		// 相机的当前heading
+		var initialHeading = viewer.camera.heading;
+		var Exection = function TimeExecution() {
+				// 当前已经过去的时间，单位s
+				var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
+				var heading = Cesium.Math.toRadians(delTime * angle) + initialHeading;
+				viewer.scene.camera.setView({
+					destination : position, // 点的坐标
+					orientation: {
+						heading : heading,
+						pitch : pitch,
+					}
+				});
+				viewer.scene.camera.moveBackward(distance);
+				if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
+					viewer.clock.onTick.removeEventListener(Exection);
+				}
+	 
+		};
+		viewer.clock.onTick.addEventListener(Exection);
+		
+	}
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<script src="Cesium/Cesium.js"></script>
+	<link rel="stylesheet" href="Cesium/Plugins/assets/bucket.css">
+</head>
+<body>
+	<div id="cesiumConstainer"></div>
+	<script>
+	    // example 1
+		//var viewer = new Cesium.Viewer('cesiumConstainer');
+		
+		// example 2
+		var provider=new Cesium.WebMapTileServiceImageryProvider({  
+			url : 'http://t0.tianditu.com/img_w/wmts?',  
+			layer:'img',  
+			format:'tile',  
+			tileMatrixSetID:'w',  
+		});
+		var viewer = new Cesium.Viewer('cesiumContainer',{
+			imageryProvider:provider,
+			baseLayerPicker: true
+		});
+	</script>
+</body>
+</html>
