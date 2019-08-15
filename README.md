@@ -29,5 +29,4 @@ git分支操作
 4. 创建+切换分支：git checkout -b <name>
 5. 合并某分支到当前分支：git merge <name>
 6. 删除分支：git branch -d <name>
-this is a last line.
-Creating a new branch is quikc And Simple.
+7. 查看提交历史: git log --graph --pretty=oneline --abbre-commit
