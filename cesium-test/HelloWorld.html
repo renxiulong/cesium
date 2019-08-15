@@ -66,17 +66,18 @@
 	});
 	viewer.imageryLayers.addImageryProvider(google);
 	/** 默认使用bing地图，转换为google地图结束 **/
-	/** 开始添加立方体开始 ***
+	/** 开始添加立方体开始 ***/
 	var redBox = viewer.entities.add({
 		name: 'my first box',
-		position: Cesium.Cartesian3.fromDegrees(-107.0, 40.0, 300000.0),
+		position: Cesium.Cartesian3.fromDegrees(116.812167,36.550532, 0.0),
 		box: {
-			dimensions : new Cesium.Cartesian3(400000.0, 300000.0, 500000.0),
+			dimensions : new Cesium.Cartesian3(4.0, 3.0, 5.0),
 			material: Cesium.Color.RED.withAlpha(0.5),
 			outline: true,
-			outlineColor: Cesium.Color.BLACK
+			outlineColor: Cesium.Color.BLACK,
 		}
 	});
+	
 	viewer.zoomTo(viewer.entities);
 	/** 开始添加立方体结束 ***/
 	
@@ -86,8 +87,7 @@
 		maximumScreenSpaceError : isMobile.any() ? 8 : 1, // Temporary workaround for low memory mobile devices - Increase maximum error to 8.
 		maximumNumberOfLoadedTiles : isMobile.any() ? 10 : 1000 // Temporary workaround for low memory mobile devices - Decrease (disable) tile cache.
 	});
-	var city = viewer.scene.primitives.add(tileset);
-	// 模型没有正确放置在地面上，需要通过以下函数来调整修复
+	var city = viewer.scene.primitives.add(tileset);// 模型没有正确放置在地面上，需要通过以下函数来调整修复
 	var heightOffset = -32;
 	city.readyPromise.then(function(tileset) {
 		// Position tileset
@@ -234,6 +234,32 @@
 		viewer.clock.onTick.addEventListener(Exection);
 		
 	}
+	
+	/** 注册屏幕空间事件 鼠标点击等操作 开始 **
+	viewer.screenSpaceEventHandler.setInputAction(function(clickEvent){
+		var feature = viewer.scene.pick(clickEvent.position).id;
+		// 显示该特征
+		feature.color = Cesium.Color.YELLOW; // 更改feature的颜色
+		// 获取该特征的属性信息
+		//var propertyNames = feature.getPropertyNames(); // 首先得到所有的属性名称
+		var propertyNames = feature.propertyNames; // 首先得到所有的属性名称
+		var length  = propertyNames.length;
+		var propertyHtml = "";
+		for (var i = 0; i < length; i++) {
+			var propertyName = propertyNames[i];
+			propertyHtml += "<tr><td>" + propertyName + "</td><<td>" +
+				feature.getProperty(propertyName) + "</td></tr>";
+		}
+		var selectEnttity = new Cesium.Entity();
+		selectEnttity.name = feature.getProperty('name');
+		selectEnttity.description= "<table class = 'cesium-infoBox-defaultTable'><tbody>" + propertyHtml + "</tbody></table>";
+		viewer.selectEnttity = selectEnttity;
+		
+		if (feature instanceof Cesium.Cesium3DTileFeature) {
+			feature.color = Cesium.Color.YELLOW;
+		}
+	}, Cesium.ScreenSpaceEventType.LEFT_CLICK); // 鼠标左键单击
+	/** 注册屏幕空间事件 鼠标点击等操作 结束 **/
   </script>
 </body>
 </html>
