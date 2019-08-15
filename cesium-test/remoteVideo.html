@@ -1,0 +1,141 @@
+<!DOCTYPE HTML>  
+<html>  
+<head>
+	<meta charset="utf-8">
+	<title>通过远程websocket视频流的视频渲染</title>
+	<script src="js/jquery-3.1.1.js"></script>
+	<script src="js/bootstrap.js"></script>
+	<script src="js/adapter.js"></script>
+	<script src="js/platform.js"></script>
+	<script src="js/h5splayer.js"></script>
+	<script src="js/h5splayerhelper.js"></script>
+	<link rel = "stylesheet" type = "text/css" href = "css/h5splayer.css" />
+	<script src="Build/Cesium/Cesium.js"></script>
+	<style>
+		@import url(Build/Cesium/Widgets/widgets.css);
+		html, body, #cesiumContainer {
+		  width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+		}
+		.cesium-widget-credits{ display:none} /**  隐藏版权信息 **/
+		.cesium-viewer .cesium-widget-credits{ display:none }
+	</style>
+</head>
+
+<body> 
+<div id="cesiumContainer"></div>
+<div class="h5videodiv1">
+    <video class="h5video1" id="h5sVideo1" muted autoplay webkit-playsinline playsinline>
+    </video>
+    <div class="playpause" id="playpause1" ></div>
+</div>
+
+</body>
+
+<script>
+$(document).ready(function(){
+	var conf1 = {
+		videoid:'h5sVideo1',
+		protocol: window.location.protocol, //http: or https:
+		host: '远程服务器IP+端口号',//window.location.host, //localhost:8080
+		rootpath:'/',
+		token:'设备ID',
+		hlsver:'v1', //v1 is for ts, v2 is for fmp4
+		session:'c1782caf-b670-42d8-ba90-2244d0b0ee83' //session got from login
+	};
+
+	var v1 = new H5sPlayerWS(conf1);
+	if (GetURLParameter("autoplay") != undefined)
+	{
+		v1.connect();
+		$('#playpause1').fadeOut();
+	}
+
+	$('#h5sVideo1').parent().click(function () {
+		if($(this).children(".h5video1").get(0).paused){
+			$(this).children(".h5video1").get(0).play();
+			if(v1 != null){
+				v1.disconnect();
+				delete v1;
+				v1 = null;
+			}
+
+			v1 = new H5sPlayerWS(conf1);
+			v1.connect();
+			$(this).children(".playpause").fadeOut();
+		}else{
+			v1.disconnect();
+			delete v1;
+			v1 = null;
+			$(this).children(".h5video1").get(0).pause();
+			$(this).children(".playpause").fadeIn();
+		}
+	});
+
+	$('#h5sVideo1').parent().click();
+	$(window).resize(function(){
+		$('#h5sVideo1').width($(window).width());
+		$('#h5sVideo1').height($(window).height());
+	});
+});
+
+
+
+</script>
+  <script>
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+		geocoder: false,//是否显示geocoder小器件，右上角查询按钮
+		homeButton:false,//是否显示Home按钮
+		sceneModePicker:false,//是否显示3D/2D选择器
+		baseLayerPicker:false,//是否显示图层选择器
+		navigationHelpButton:false,//是否显示右上角的帮助按钮
+		animation:false,//是否创建动画小器件，左下角仪表
+		creditContainer:"cesiumContainer",// 对应上面div的ID
+		timeline:false,//是否显示时间轴
+		fullscreenButtion:false,//是否显示全屏按钮
+		vrButton:false,
+		selectionIndicator : false,//是否显示选取指示器组件
+	});
+	// 上面配置选项可以控制部分控件是否显示
+	viewer.scene.debugShowFramesPerSecond = true;// 显示帧率
+	/** 默认使用bing地图，转换为google地图开始 **/
+	var google = new Cesium.UrlTemplateImageryProvider({
+		url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
+		tilingScheme : new Cesium.WebMercatorTilingScheme(),
+		maximumLevel : 20
+	});
+	viewer.imageryLayers.addImageryProvider(google);
+	/** 默认使用bing地图，转换为google地图结束 **/
+	/** 开始添加立方体开始 ***/
+	var h5sVideo1 = document.getElementById('h5sVideo1');//获得video对象
+	var redBox = viewer.entities.add({
+		name: 'my first box',
+		position: Cesium.Cartesian3.fromDegrees(116.812167,36.550532, 1.0),
+		box: {
+			dimensions : new Cesium.Cartesian3(10.0, 0.1, 10.0),
+			material: Cesium.Color.RED.withAlpha(0.5),
+			outline: true,
+			outlineColor: Cesium.Color.BLACK,
+			material: h5sVideo1,
+		}
+	});
+	viewer.zoomTo(viewer.entities);
+	/** 开始添加立方体结束 ***/
+	
+	/** 放置航拍模型开始 ***/
+	var tileset = new Cesium.Cesium3DTileset({
+		url: 'Scene/Production_1.json',
+	});
+	var city = viewer.scene.primitives.add(tileset);// 模型没有正确放置在地面上，需要通过以下函数来调整修复
+	var heightOffset = -32;
+	city.readyPromise.then(function(tileset) {
+		// Position tileset
+		var boundingSphere = tileset.boundingSphere;
+		var cartographic = Cesium.Cartographic.fromCartesian(boundingSphere.center);
+		var surface = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 0.0);
+		var offset = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, heightOffset);
+		var translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3());
+		tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+	});
+	/** 放置航拍模型结束 ***/
+  </script>
+</html> 
