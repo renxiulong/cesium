@@ -30,4 +30,4 @@ git分支操作
 5. 合并某分支到当前分支：git merge <name>
 6. 删除分支：git branch -d <name>
 this is a last line.
-Creating a new branch is quick & simple.
+Creating a new branch is quikc And Simple.
