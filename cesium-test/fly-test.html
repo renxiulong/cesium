@@ -7,7 +7,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
-  <title>Hello World!</title>
+  <title>cisium airplane trip</title>
   <script src="Build/Cesium/Cesium.js"></script>
   <style>
       @import url(Build/Cesium/Widgets/widgets.css);
@@ -65,122 +65,101 @@
 	
 	/** 相机视角飞行 开始 **/
 	var marks = [
-		{lng: 116.812948,lat:36.550064, height:10, flytime:15},// height:单位米 flytime:单位秒
-		{lng: 116.811998,lat:36.550586, height:10, flytime:15},
-		{lng: 116.811464,lat:36.550056, height:10, flytime:15},
-		{lng: 116.812356,lat:36.549468, height:10, flytime:15},
+		{lng: 116.812948,lat:36.550064, height:8, flytime:15},// height:相机高度(单位米) flytime:相机两个标注点飞行时间(单位秒)
+		{lng: 116.811998,lat:36.550586, height:8, flytime:15},
+		{lng: 116.811464,lat:36.550056, height:8, flytime:15},
+		{lng: 116.812356,lat:36.549468, height:8, flytime:15},
 	];// 地标集合 根据地标顺序来进行漫游
-	var FLYTIME = 15; // 飞行时间
-	var marksIndex = 0;
-	var position=Cesium.Cartesian3.fromDegrees(116.812948,36.550064, 10);
+	var marksIndex = 1;
 
 	viewer.scene.camera.flyTo({
-		destination: Cesium.Cartesian3.fromDegrees(marks[0].lng,marks[0].lat, marks[0].height),  //定位坐标点，建议使用谷歌地球坐标位置无偏差
-		duration:5   //定位的时间间隔
+		destination: Cesium.Cartesian3.fromDegrees(marks[1].lng,marks[1].lat, marks[1].height),  //定位坐标点，建议使用谷歌地球坐标位置无偏差
+		duration:7   //定位的时间间隔
 	});
 	
 	setTimeout(function(){
 		 flyExtent();
 	},7000);
-	marksIndex++;
 	function  flyExtent(){
-		// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-30度
-		var pitch = Cesium.Math.toRadians(-20);
-		// 给定相机距离点多少距离飞行
-		var distance = marks[marksIndex].height;
-		var startTime = Cesium.JulianDate.fromDate(new Date());
-		
-		var stopTime = Cesium.JulianDate.addSeconds(startTime, marks[marksIndex].flytime, new Cesium.JulianDate());
-	 
-		viewer.clock.startTime = startTime.clone();  // 开始时间
-		viewer.clock.stopTime = stopTime.clone();     // 结速时间
-		viewer.clock.currentTime = startTime.clone(); // 当前时间
-		viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 行为方式
-		viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK; // 时钟设置为当前系统时间; 忽略所有其他设置。
-		
-		// 相机的当前heading
-		var initialHeading = viewer.camera.heading;
+		// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-10度
+		var pitch = Cesium.Math.toRadians(-10);
+		// 时间间隔2秒钟
+		setExtentTime(marks[marksIndex].flytime);
 		var Exection = function TimeExecution() {
-				var preIndex = marksIndex - 1;
-				if(marksIndex == 0){
-					preIndex = marks.length -1;
+			var preIndex = marksIndex - 1;
+			if(marksIndex == 0){
+				preIndex = marks.length -1;
+			}
+			var heading = bearing(marks[preIndex].lat, marks[preIndex].lng, marks[marksIndex].lat, marks[marksIndex].lng);
+			heading = Cesium.Math.toRadians(heading);
+			// 当前已经过去的时间，单位s
+			var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
+			var originLat = marksIndex == 0 ? marks[marks.length - 1].lat : marks[marksIndex-1].lat;
+			var originLng = marksIndex == 0 ? marks[marks.length - 1].lng : marks[marksIndex-1].lng;
+			var endPosition = Cesium.Cartesian3.fromDegrees(
+				(originLng+(marks[marksIndex].lng-originLng)/marks[marksIndex].flytime*delTime), 
+				(originLat+(marks[marksIndex].lat-originLat)/marks[marksIndex].flytime*delTime), 
+				marks[marksIndex].height
+			);
+			viewer.scene.camera.setView({
+				destination: endPosition,
+				orientation: {
+					heading: heading,
+					pitch : pitch,
 				}
-				var newheading = bearing(marks[preIndex].lat, marks[preIndex].lng, marks[marksIndex].lat, marks[marksIndex].lng);
-				newheading = Cesium.Math.toRadians(newheading);
-				// 当前已经过去的时间，单位s
-				var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
-				var originLat = marksIndex == 0 ? marks[marks.length - 1].lat : marks[marksIndex-1].lat;
-				var originLng = marksIndex == 0 ? marks[marks.length - 1].lng : marks[marksIndex-1].lng;
-				var end = Cesium.Cartesian3.fromDegrees(
-					(originLng+(marks[marksIndex].lng-originLng)/marks[marksIndex].flytime*delTime), 
-					(originLat+(marks[marksIndex].lat-originLat)/marks[marksIndex].flytime*delTime), 
-					marks[marksIndex].height
-				);
-				viewer.scene.camera.setView({
-					destination: end,
-					orientation: {
-						heading: newheading,
-						pitch : pitch,
-					}
-				});
-				if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
-					viewer.clock.onTick.removeEventListener(Exection);
-					//marksIndex = ++marksIndex >= marks.length ? 0 : marksIndex;
-					flyExtent1();
-					//console.log('marksIndex:' + marksIndex);
-				}
-	 
+			});
+			if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
+				viewer.clock.onTick.removeEventListener(Exection);
+				changeCameraHeading();
+			}
 		};
 		viewer.clock.onTick.addEventListener(Exection);
-		
 	}
-	function  flyExtent1(){
+	// 相机原地定点转向
+	function  changeCameraHeading(){
 		var nextIndex = marksIndex + 1;
 		if(marksIndex == marks.length - 1){
 			nextIndex = 0;
 		}
-		var newheading = bearing(marks[marksIndex].lat, marks[marksIndex].lng, marks[nextIndex].lat, marks[nextIndex].lng);
-		// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-30度
-		var pitch = Cesium.Math.toRadians(-20);
+		// 计算两点之间的方向
+		var heading = bearing(marks[marksIndex].lat, marks[marksIndex].lng, marks[nextIndex].lat, marks[nextIndex].lng);
+		// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-10度
+		var pitch = Cesium.Math.toRadians(-10);
 		// 给定飞行一周所需时间，比如10s, 那么每秒转动度数
-		var angle = (newheading - Cesium.Math.toDegrees(viewer.camera.heading)) / 2;
-		// 给定相机距离点多少距离飞行，这里取值为5000m
-		var distance = 150;// 150米
-		distance = marks[marksIndex].height;
+		var angle = (heading - Cesium.Math.toDegrees(viewer.camera.heading)) / 2;
+		// 时间间隔2秒钟
+		setExtentTime(2);
+		// 相机的当前heading
+		var initialHeading = viewer.camera.heading;
+		var Exection = function TimeExecution() {
+			// 当前已经过去的时间，单位s
+			var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
+			var heading = Cesium.Math.toRadians(delTime * angle) + initialHeading;
+			viewer.scene.camera.setView({
+				orientation: {
+					heading : heading,
+					pitch : pitch,
+				}
+			});
+			if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
+				viewer.clock.onTick.removeEventListener(Exection);
+				marksIndex = ++marksIndex >= marks.length ? 0 : marksIndex;
+				flyExtent();
+			}
+		};
+		viewer.clock.onTick.addEventListener(Exection);
+	}
+	// 设置飞行的时间到viewer的时钟里
+	function setExtentTime(time){
 		var startTime = Cesium.JulianDate.fromDate(new Date());
-		
-		var stopTime = Cesium.JulianDate.addSeconds(startTime, 2, new Cesium.JulianDate());
-	 
+		var stopTime = Cesium.JulianDate.addSeconds(startTime, time, new Cesium.JulianDate());
 		viewer.clock.startTime = startTime.clone();  // 开始时间
 		viewer.clock.stopTime = stopTime.clone();     // 结速时间
 		viewer.clock.currentTime = startTime.clone(); // 当前时间
 		viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 行为方式
 		viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK; // 时钟设置为当前系统时间; 忽略所有其他设置。
-		// 相机的当前heading
-		var initialHeading = viewer.camera.heading;
-		var Exection = function TimeExecution() {
-				// 当前已经过去的时间，单位s
-				var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
-				var heading = Cesium.Math.toRadians(delTime * angle) + initialHeading;
-				var originLat = marksIndex == 0 ? marks[marks.length - 1].lat : marks[marksIndex-1].lat;
-				var originLng = marksIndex == 0 ? marks[marks.length - 1].lng : marks[marksIndex-1].lng;
-				viewer.scene.camera.setView({
-					orientation: {
-						heading : heading,
-						pitch : pitch,
-					}
-				});
-				if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
-					viewer.clock.onTick.removeEventListener(Exection);
-					marksIndex = ++marksIndex >= marks.length ? 0 : marksIndex;
-					flyExtent();
-				}
-	 
-		};
-		viewer.clock.onTick.addEventListener(Exection);
 	}
 	/** 相机视角飞行 结束 **/
-	setInterval(function(){console.log(viewer.scene.camera.heading);}, 10000);
 	
 	/** 飞行时 camera的方向调整(heading) 开始 **/
 	 // Converts from degrees to radians.
