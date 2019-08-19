@@ -21,29 +21,7 @@
 <body>
   <div id="cesiumContainer"></div>
   <script>
-	// Functions to adapt screen space error and memory use to the device
-	var isMobile = {
-		Android: function() {
-			return navigator.userAgent.match(/Android/i);
-		},
-		BlackBerry: function() {
-			return navigator.userAgent.match(/BlackBerry/i);
-		},
-		iOS: function() {
-			return navigator.userAgent.match(/iPhone|iPad|iPod/i);
-		},
-		Opera: function() {
-			return navigator.userAgent.match(/Opera Mini/i);
-		},
-		Windows: function() {
-			return navigator.userAgent.match(/IEMobile/i);
-		},
-		any: function() {
-			return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows());
-		}
-	};
     var viewer = new Cesium.Viewer('cesiumContainer', {
-	//1602007809200059314潍坊果壳视界信息科技有限公司济南分公司
 		geocoder: false,//是否显示geocoder小器件，右上角查询按钮
 		homeButton:false,//是否显示Home按钮
 		sceneModePicker:false,//是否显示3D/2D选择器
@@ -60,32 +38,16 @@
 	viewer.scene.debugShowFramesPerSecond = true;// 显示帧率
 	/** 默认使用bing地图，转换为google地图开始 **/
 	var google = new Cesium.UrlTemplateImageryProvider({
-		//url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
 		url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
 		tilingScheme : new Cesium.WebMercatorTilingScheme(),
 		maximumLevel : 20
 	});
 	viewer.imageryLayers.addImageryProvider(google);
 	/** 默认使用bing地图，转换为google地图结束 **/
-	/** 开始添加立方体开始 ***
-	var redBox = viewer.entities.add({
-		name: 'my first box',
-		position: Cesium.Cartesian3.fromDegrees(-107.0, 40.0, 300000.0),
-		box: {
-			dimensions : new Cesium.Cartesian3(400000.0, 300000.0, 500000.0),
-			material: Cesium.Color.RED.withAlpha(0.5),
-			outline: true,
-			outlineColor: Cesium.Color.BLACK
-		}
-	});
-	viewer.zoomTo(viewer.entities);
-	/** 开始添加立方体结束 ***/
 	
 	/** 放置航拍模型开始 ***/
 	var tileset = new Cesium.Cesium3DTileset({
 		url: 'Scene/Production_1.json',
-		maximumScreenSpaceError : isMobile.any() ? 8 : 1, // Temporary workaround for low memory mobile devices - Increase maximum error to 8.
-		maximumNumberOfLoadedTiles : isMobile.any() ? 10 : 1000 // Temporary workaround for low memory mobile devices - Decrease (disable) tile cache.
 	});
 	var city = viewer.scene.primitives.add(tileset);
 	// 模型没有正确放置在地面上，需要通过以下函数来调整修复
@@ -100,32 +62,150 @@
 		tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
 	});
 	/** 放置航拍模型结束 ***/
-	/** 放置介绍文字 贴地开始**/
-	var citizensBankPark = viewer.entities.add({
-		name : 'Citizens Bank Park',
-		position : Cesium.Cartesian3.fromDegrees(116.812267,36.550532),
-		point : {
-			pixelSize : 5,
-			color : Cesium.Color.RED,
-			outlineColor : Cesium.Color.WHITE,
-			outlineWidth : 2
-		},
-		label : {
-			text : 'Citizens Bank Park',
-			font : '14pt monospace',
-			style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-			outlineWidth : 2,
-			verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
-			pixelOffset : new Cesium.Cartesian2(0, -9)
-		}
-	});
-
-	//viewer.zoomTo(viewer.entities);
-	/** 放置介绍文字 贴地 并且拉进距离 结束**/
 	
 	/** 相机视角飞行 开始 **/
+	var marks = [
+		{lng: 116.812948,lat:36.550064, height:10, flytime:15},// height:单位米 flytime:单位秒
+		{lng: 116.811998,lat:36.550586, height:10, flytime:15},
+		{lng: 116.811464,lat:36.550056, height:10, flytime:15},
+		{lng: 116.812356,lat:36.549468, height:10, flytime:15},
+	];// 地标集合 根据地标顺序来进行漫游
+	var FLYTIME = 15; // 飞行时间
+	var marksIndex = 0;
+	var position=Cesium.Cartesian3.fromDegrees(116.812948,36.550064, 10);
+
+	viewer.scene.camera.flyTo({
+		destination: Cesium.Cartesian3.fromDegrees(marks[0].lng,marks[0].lat, marks[0].height),  //定位坐标点，建议使用谷歌地球坐标位置无偏差
+		duration:5   //定位的时间间隔
+	});
 	
+	setTimeout(function(){
+		 flyExtent();
+	},7000);
+	marksIndex++;
+	function  flyExtent(){
+		// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-30度
+		var pitch = Cesium.Math.toRadians(-20);
+		// 给定相机距离点多少距离飞行
+		var distance = marks[marksIndex].height;
+		var startTime = Cesium.JulianDate.fromDate(new Date());
+		
+		var stopTime = Cesium.JulianDate.addSeconds(startTime, marks[marksIndex].flytime, new Cesium.JulianDate());
+	 
+		viewer.clock.startTime = startTime.clone();  // 开始时间
+		viewer.clock.stopTime = stopTime.clone();     // 结速时间
+		viewer.clock.currentTime = startTime.clone(); // 当前时间
+		viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 行为方式
+		viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK; // 时钟设置为当前系统时间; 忽略所有其他设置。
+		
+		// 相机的当前heading
+		var initialHeading = viewer.camera.heading;
+		var Exection = function TimeExecution() {
+				var preIndex = marksIndex - 1;
+				if(marksIndex == 0){
+					preIndex = marks.length -1;
+				}
+				var newheading = bearing(marks[preIndex].lat, marks[preIndex].lng, marks[marksIndex].lat, marks[marksIndex].lng);
+				newheading = Cesium.Math.toRadians(newheading);
+				// 当前已经过去的时间，单位s
+				var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
+				var originLat = marksIndex == 0 ? marks[marks.length - 1].lat : marks[marksIndex-1].lat;
+				var originLng = marksIndex == 0 ? marks[marks.length - 1].lng : marks[marksIndex-1].lng;
+				var end = Cesium.Cartesian3.fromDegrees(
+					(originLng+(marks[marksIndex].lng-originLng)/marks[marksIndex].flytime*delTime), 
+					(originLat+(marks[marksIndex].lat-originLat)/marks[marksIndex].flytime*delTime), 
+					marks[marksIndex].height
+				);
+				viewer.scene.camera.setView({
+					destination: end,
+					orientation: {
+						heading: newheading,
+						pitch : pitch,
+					}
+				});
+				if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
+					viewer.clock.onTick.removeEventListener(Exection);
+					//marksIndex = ++marksIndex >= marks.length ? 0 : marksIndex;
+					flyExtent1();
+					//console.log('marksIndex:' + marksIndex);
+				}
+	 
+		};
+		viewer.clock.onTick.addEventListener(Exection);
+		
+	}
+	function  flyExtent1(){
+		var nextIndex = marksIndex + 1;
+		if(marksIndex == marks.length - 1){
+			nextIndex = 0;
+		}
+		var newheading = bearing(marks[marksIndex].lat, marks[marksIndex].lng, marks[nextIndex].lat, marks[nextIndex].lng);
+		// 相机看点的角度，如果大于0那么则是从地底往上看，所以要为负值，这里取-30度
+		var pitch = Cesium.Math.toRadians(-20);
+		// 给定飞行一周所需时间，比如10s, 那么每秒转动度数
+		var angle = (newheading - Cesium.Math.toDegrees(viewer.camera.heading)) / 2;
+		// 给定相机距离点多少距离飞行，这里取值为5000m
+		var distance = 150;// 150米
+		distance = marks[marksIndex].height;
+		var startTime = Cesium.JulianDate.fromDate(new Date());
+		
+		var stopTime = Cesium.JulianDate.addSeconds(startTime, 2, new Cesium.JulianDate());
+	 
+		viewer.clock.startTime = startTime.clone();  // 开始时间
+		viewer.clock.stopTime = stopTime.clone();     // 结速时间
+		viewer.clock.currentTime = startTime.clone(); // 当前时间
+		viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 行为方式
+		viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK; // 时钟设置为当前系统时间; 忽略所有其他设置。
+		// 相机的当前heading
+		var initialHeading = viewer.camera.heading;
+		var Exection = function TimeExecution() {
+				// 当前已经过去的时间，单位s
+				var delTime = Cesium.JulianDate.secondsDifference(viewer.clock.currentTime, viewer.clock.startTime);
+				var heading = Cesium.Math.toRadians(delTime * angle) + initialHeading;
+				var originLat = marksIndex == 0 ? marks[marks.length - 1].lat : marks[marksIndex-1].lat;
+				var originLng = marksIndex == 0 ? marks[marks.length - 1].lng : marks[marksIndex-1].lng;
+				viewer.scene.camera.setView({
+					orientation: {
+						heading : heading,
+						pitch : pitch,
+					}
+				});
+				if (Cesium.JulianDate.compare(viewer.clock.currentTime, viewer.clock.stopTime) >= 0) {
+					viewer.clock.onTick.removeEventListener(Exection);
+					marksIndex = ++marksIndex >= marks.length ? 0 : marksIndex;
+					flyExtent();
+				}
+	 
+		};
+		viewer.clock.onTick.addEventListener(Exection);
+	}
 	/** 相机视角飞行 结束 **/
+	setInterval(function(){console.log(viewer.scene.camera.heading);}, 10000);
+	
+	/** 飞行时 camera的方向调整(heading) 开始 **/
+	 // Converts from degrees to radians.
+	function toRadians(degrees) {
+		return degrees * Math.PI / 180;
+	}
+
+	// Converts from radians to degrees.
+	function toDegrees(radians) {
+		return radians * 180 / Math.PI;
+	}
+
+	function bearing(startLat, startLng, destLat, destLng){
+		startLat = this.toRadians(startLat);
+		startLng = this.toRadians(startLng);
+		destLat = this.toRadians(destLat);
+		destLng = this.toRadians(destLng);
+
+		let y = Math.sin(destLng - startLng) * Math.cos(destLat);
+		let x = Math.cos(startLat) * Math.sin(destLat) - Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLng - startLng);
+		let brng = Math.atan2(y, x);
+		let brngDgr = this.toDegrees(brng);
+		return (brngDgr + 360) % 360;
+	}
+	/** 飞行时 camera的方向调整(heading) 结束 **/
   </script>
 </body>
 </html>
