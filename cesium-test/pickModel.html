@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8">
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>pick selected model</title>
+  <script src="Build/Cesium/Cesium.js"></script>
+  <style>
+      @import url(Build/Cesium/Widgets/widgets.css);
+      html, body, #cesiumContainer {
+          width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+	  .cesium-widget-credits{ display:none} /**  隐藏版权信息 **/
+	  .cesium-viewer .cesium-widget-credits{ display:none }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script>
+	// Functions to adapt screen space error and memory use to the device
+	var isMobile = {
+		Android: function() {
+			return navigator.userAgent.match(/Android/i);
+		},
+		BlackBerry: function() {
+			return navigator.userAgent.match(/BlackBerry/i);
+		},
+		iOS: function() {
+			return navigator.userAgent.match(/iPhone|iPad|iPod/i);
+		},
+		Opera: function() {
+			return navigator.userAgent.match(/Opera Mini/i);
+		},
+		Windows: function() {
+			return navigator.userAgent.match(/IEMobile/i);
+		},
+		any: function() {
+			return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows());
+		}
+	};
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+		geocoder: false,//是否显示geocoder小器件，右上角查询按钮
+		homeButton:false,//是否显示Home按钮
+		sceneModePicker:false,//是否显示3D/2D选择器
+		baseLayerPicker:false,//是否显示图层选择器
+		navigationHelpButton:false,//是否显示右上角的帮助按钮
+		animation:false,//是否创建动画小器件，左下角仪表
+		creditContainer:"cesiumContainer",// 对应上面div的ID
+		timeline:false,//是否显示时间轴
+		fullscreenButtion:false,//是否显示全屏按钮
+		vrButton:false,
+		selectionIndicator : false,//是否显示选取指示器组件
+	});
+	// 上面配置选项可以控制部分控件是否显示
+	viewer.scene.debugShowFramesPerSecond = true;// 显示帧率
+	/** 默认使用bing地图，转换为google地图开始 **/
+	var google = new Cesium.UrlTemplateImageryProvider({
+		//url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
+		url : 'http://mt0.google.cn/vt/lyrs=s&hl=zh-CN&x={x}&y={y}&z={z}',
+		tilingScheme : new Cesium.WebMercatorTilingScheme(),
+		maximumLevel : 20
+	});
+	viewer.imageryLayers.addImageryProvider(google);
+	/** 默认使用bing地图，转换为google地图结束 **/
+	/** 开始添加立方体开始 ***/
+	var redBox = viewer.entities.add({
+		name: 'my first box',
+		position: Cesium.Cartesian3.fromDegrees(116.812167,36.550532, 0.0),
+		box: {
+			dimensions : new Cesium.Cartesian3(4.0, 3.0, 5.0),
+			material: Cesium.Color.RED.withAlpha(0.5),
+			outline: true,
+			outlineColor: Cesium.Color.BLACK,
+		}
+	});
+	
+	viewer.zoomTo(viewer.entities);
+	/** 开始添加立方体结束 ***/
+	
+	/** 放置航拍模型开始 ***/
+	var tileset = new Cesium.Cesium3DTileset({
+		url: 'Scene/Production_1.json',
+		maximumScreenSpaceError : isMobile.any() ? 8 : 1, // Temporary workaround for low memory mobile devices - Increase maximum error to 8.
+		maximumNumberOfLoadedTiles : isMobile.any() ? 10 : 1000 // Temporary workaround for low memory mobile devices - Decrease (disable) tile cache.
+	});
+	var city = viewer.scene.primitives.add(tileset);// 模型没有正确放置在地面上，需要通过以下函数来调整修复
+	var heightOffset = -32;
+	city.readyPromise.then(function(tileset) {
+		// Position tileset
+		var boundingSphere = tileset.boundingSphere;
+		var cartographic = Cesium.Cartographic.fromCartesian(boundingSphere.center);
+		var surface = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 0.0);
+		var offset = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, heightOffset);
+		var translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3());
+		tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+		
+		/**tileset.style = new Cesium.Cesium3DTileStyle({
+			color : {
+				conditions : [
+					//['${Height} >= 100', 'color("purple", 0.5)'],
+					//['${Height} >= 1', 'color("red")'],
+					['true', 'color("blue")']
+				]
+			},
+			show : true,
+			meta : {
+				description : '"Building id ${id} has height ${Height}."'
+			}
+		});**/
+	});
+	/** 放置航拍模型结束 ***/
+	/** 放置介绍文字 贴地开始**/
+	var citizensBankPark = viewer.entities.add({
+		id: 'sensor0',
+		name : 'Citizens Bank Park',
+		position : Cesium.Cartesian3.fromDegrees(116.812267,36.550532),
+		point : {
+			pixelSize : 5,
+			color : Cesium.Color.RED,
+			outlineColor : Cesium.Color.WHITE,
+			outlineWidth : 2
+		},
+		label : {
+			text : '一号大棚\n空气温度:33.4℃\n空气湿度:87%\n光照度:394klux\n辐射度:30ppm',
+			font : '28pt 微软雅黑',//monospace',
+			style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+			outlineWidth : 20,
+			scale:0.5,
+			verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+			pixelOffset : new Cesium.Cartesian2(0, -9),
+			distanceDisplayCondition: true,
+			showBackground: true,
+			horizontalOrigin:1,// 0:居中 1:left左对齐 2:right右对齐
+			backgroundPadding:new Cesium.Cartesian2(30, 30)
+		}
+	});
+	viewer.scene.postProcessStages.fxaa.enabled = false;// 关闭快速抗锯齿 抑制文字模糊效果
+
+	viewer.zoomTo(viewer.entities);
+	/** 放置介绍文字 贴地 并且拉进距离 结束**/
+	/** 超过一定比例 隐藏文字组件 开始 **/
+	// 鼠标滚轮事件
+	var camera=viewer.camera;
+	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+	handler.setInputAction(function(wheelment) {
+		var height=camera.positionCartographic.height;
+		if(height<100){
+			console.log('height:' + height + ' show label');
+			console.log(viewer.entities.values);
+			viewer.entities.values.forEach(function(item) {
+				if(item.id == 'sensor0') {
+					item.show = true;
+				}
+			});
+		} else {
+			console.log('height:' + height + ' hide label');
+			viewer.entities.values.forEach(function(item) {
+				if(item.id == 'sensor0') {
+					item.show = false;
+				}
+			});
+		}
+	}, Cesium.ScreenSpaceEventType.WHEEL);
+	/** 超过一定比例 隐藏文字组件 结束 **/
+	
+	var defaultStyle = new Cesium.Cesium3DTileStyle({
+		color: "color('white')",
+		show: true
+		});
+	city.style = defaultStyle;
+	/** 注册屏幕空间事件 鼠标点击等操作 开始 **/
+	viewer.screenSpaceEventHandler.setInputAction(function(clickEvent){
+		var feature = viewer.scene.pick(clickEvent.position);
+		if(!feature) return;
+		// 显示该特征
+		feature.color = Cesium.Color.YELLOW; // 更改feature的颜色
+		// 获取该特征的属性信息
+		//var propertyNames = feature.getPropertyNames(); // 首先得到所有的属性名称
+		var propertyNames = feature.propertyNames; // 首先得到所有的属性名称
+		var length  = propertyNames.length;
+		var propertyHtml = "";
+		for (var i = 0; i < length; i++) {
+			var propertyName = propertyNames[i];
+			propertyHtml += "<tr><td>" + propertyName + "</td><<td>" +
+				feature.getProperty(propertyName) + "</td></tr>";
+		}
+		var selectEnttity = new Cesium.Entity();
+		selectEnttity.name = feature.getProperty('name');
+		selectEnttity.description= "<table class = 'cesium-infoBox-defaultTable'><tbody>" + propertyHtml + "</tbody></table>";
+		viewer.selectEnttity = selectEnttity;
+		
+		if (feature instanceof Cesium.Cesium3DTileFeature) {
+			feature.color = Cesium.Color.YELLOW;
+		}
+	}, Cesium.ScreenSpaceEventType.LEFT_CLICK); // 鼠标左键单击
+	/** 注册屏幕空间事件 鼠标点击等操作 结束 **/
+	
+	/** 生成树模型 开始 **/
+	/*******test start**********/
+	var center1 = new Cesium.Cartesian3(1216389.3637977627, -4736323.641980423, 4081321.7428341154);
+	var cartographic = Cesium.Cartographic.fromCartesian(center1);
+	console.log(cartographic);
+	center = Cesium.Cartesian3.fromDegrees(116.812105, 36.550352, 1.2);
+	var cartographic1 = Cesium.Cartographic.fromCartesian(center);
+	var point=[ cartographic.longitude / Math.PI * 180, cartographic.latitude / Math.PI * 180];
+	console.log(point);
+	/*******test end**********/
+	
+	
+	
+	
+	center = Cesium.Cartesian3.fromDegrees(116.812105, 36.550352, 1.2);
+	modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+	hprRotation = Cesium.Matrix3.fromHeadingPitchRoll(new Cesium.HeadingPitchRoll(5.785339046755887, 0.0, 0.0));
+	hpr = Cesium.Matrix4.fromRotationTranslation(hprRotation, new Cesium.Cartesian3(-0.25, 0.0, -2.0));
+	Cesium.Matrix4.multiply(modelMatrix, hpr, modelMatrix);
+
+	var treeHighlight2 = viewer.scene.primitives.add(new Cesium.ClassificationPrimitive({
+		geometryInstances : new Cesium.GeometryInstance({
+			geometry : new Cesium.EllipsoidGeometry({
+				radii : new Cesium.Cartesian3(3.25, 4.0, 3.0)
+			}),
+			modelMatrix : modelMatrix,
+			attributes : {
+				color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#F03A47').withAlpha(0.1)),
+				show : new Cesium.ShowGeometryInstanceAttribute(true)
+			},
+			id : 'volume 2'
+		}),
+		classificationType : Cesium.ClassificationType.CESIUM_3D_TILE
+	}));
+	
+	var currentObjectId;
+	var currentPrimitive;
+	var currentColor;
+	var currentShow;
+	var attributes;
+
+	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+	handler.setInputAction(function(movement) {
+		var pickedObject = viewer.scene.pick(movement.endPosition);
+		if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+			if (pickedObject.id === currentObjectId) {
+				return;
+			}
+
+			if (Cesium.defined(currentObjectId)) {
+				attributes = currentPrimitive.getGeometryInstanceAttributes(currentObjectId);
+				attributes.color = currentColor;
+				attributes.show = currentShow;
+				currentObjectId = undefined;
+				currentPrimitive = undefined;
+				currentColor = undefined;
+				currentShow = undefined;
+			}
+		}
+
+		if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.primitive) && Cesium.defined(pickedObject.id) && Cesium.defined(pickedObject.primitive.getGeometryInstanceAttributes)) {
+			currentObjectId = pickedObject.id;
+			currentPrimitive = pickedObject.primitive;
+			attributes = currentPrimitive.getGeometryInstanceAttributes(currentObjectId);
+			currentColor = attributes.color;
+			currentShow = attributes.show;
+			if (!viewer.scene.invertClassification) {
+				attributes.color = [255, 0, 255, 128];
+			}
+			attributes.show = [1];
+		} else if (Cesium.defined(currentObjectId)) {
+			attributes = currentPrimitive.getGeometryInstanceAttributes(currentObjectId);
+			attributes.color = currentColor;
+			attributes.show = currentShow;
+			currentObjectId = undefined;
+			currentPrimitive = undefined;
+			currentColor = undefined;
+		}
+	}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+	// 参考例子:https://cesiumjs.org/Cesium/Build/Apps/Sandcastle/#c=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
+  </script>
+</body>
+</html>
